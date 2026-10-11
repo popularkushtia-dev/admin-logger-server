@@ -56,14 +56,19 @@ def get_stats():
         "pcDetails": pc_list
     })
 
-# পিসির হিস্ট্রি ডিলিট বা রিসেট করার API
 @app.route('/api/delete/<pc_name>', methods=['POST'])
 def delete_pc(pc_name):
     if pc_name in active_pcs:
         del active_pcs[pc_name]
     return jsonify({"status": "deleted"})
 
-# প্রিমিয়াম ডিজাইন ও লাইভ লগসহ ড্যাশবোর্ড UI
+@app.route('/api/clear-all', methods=['POST'])
+def clear_all():
+    global active_pcs, ALL_LOGS
+    active_pcs = {}
+    ALL_LOGS = []
+    return jsonify({"status": "cleared"})
+
 @app.route('/', methods=['GET'])
 def home():
     html_template = """
@@ -75,7 +80,10 @@ def home():
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
             .container { max-width: 1100px; margin: 0 auto; }
-            h1 { text-align: center; color: #38bdf8; margin-bottom: 30px; }
+            .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+            h1 { color: #38bdf8; margin: 0; font-size: 24px; }
+            .btn-clear-all { background: #dc2626; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+            .btn-clear-all:hover { background: #b91c1c; }
             .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
             .card { background: #1e293b; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-left: 5px solid #38bdf8; }
             .card.green { border-left-color: #22c55e; }
@@ -102,20 +110,56 @@ def home():
                     document.getElementById('remaining').innerText = data.grandTotalRemaining;
                     
                     let tbody = document.getElementById('pc-table-body');
-                    tbody.innerHTML = '';
+                    
+                    // বর্তমান টেবিলের ডাটা আপডেট করা হবে, পুরো পেজ বা টেবিল రీ-ক্রিয়েট বা রিলোড হবে না
+                    let existingRows = {};
+                    for (let row of tbody.rows) {
+                        if (row.cells.length > 0 && row.cells[0].innerText) {
+                            existingRows[row.cells[0].innerText.trim()] = row;
+                        }
+                    }
+
                     if(data.pcDetails.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b;">কোনো পিসি কানেক্ট নেই বা ডাটা মুছে ফেলা হয়েছে।</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b;">কোনো পিসি কানেক্ট নেই বা হিস্ট্রি ক্লিয়ার করা হয়েছে।</td></tr>';
                     } else {
+                        // যদি আগে নো-ডাটা মেসেজ থাকে তা সরিয়ে ফেলব
+                        if(tbody.rows.length === 1 && tbody.rows[0].cells.length === 1) {
+                            tbody.innerHTML = '';
+                        }
+
                         data.pcDetails.forEach(pc => {
-                            let tr = document.createElement('tr');
-                            tr.innerHTML = `<td><span class="badge">${pc.pcName}</span></td>
-                                            <td style="color: #22c55e; font-weight:bold;">${pc.saved}</td>
-                                            <td style="color: #f59e0b; font-weight:bold;">${pc.remaining}</td>
-                                            <td><div class="log-text" title="${pc.lastLog}">${pc.lastLog || 'No activity'}</div></td>
-                                            <td style="color: #94a3b8; font-size:13px;">${pc.lastActive}</td>
-                                            <td><button class="btn-delete" onclick="deletePC('${pc.pcName}')">🗑️ Delete</button></td>`;
-                            tbody.appendChild(tr);
+                            let logMsg = pc.lastLog || 'No activity';
+                            let activeTime = pc.lastActive || '';
+
+                            if (existingRows[pc.pcName]) {
+                                // শুধু ভ্যালুগুলো আপডেট করবে, ফলে মাউস বা ফোকাস হারাবে না
+                                let row = existingRows[pc.pcName];
+                                row.cells[1].innerText = pc.saved;
+                                row.cells[2].innerText = pc.remaining;
+                                let logDiv = row.cells[3].querySelector('.log-text');
+                                if(logDiv && logDiv.innerText !== logMsg) {
+                                    logDiv.innerText = logMsg;
+                                    logDiv.title = logMsg;
+                                }
+                                row.cells[4].innerText = activeTime;
+                                delete existingRows[pc.pcName];
+                            } else {
+                                // নতুন পিসি যুক্ত হলে রো তৈরি করবে
+                                let tr = document.createElement('tr');
+                                tr.innerHTML = `<td><span class="badge">${pc.pcName}</span></td>
+                                                <td style="color: #22c55e; font-weight:bold;">${pc.saved}</td>
+                                                <td style="color: #f59e0b; font-weight:bold;">${pc.remaining}</td>
+                                                <td><div class="log-text" title="${logMsg}">${logMsg}</div></td>
+                                                <td style="color: #94a3b8; font-size:13px;">${activeTime}</td>
+                                                <td><button class="btn-delete" onclick="deletePC('${pc.pcName}')">🗑️ Delete</button></td>`;
+                                tbody.appendChild(tr);
+                            }
                         });
+
+                        // যে পিসিগুলো ডিসকানেক্ট বা ডিলিট হয়েছে তাদের রো রিমুভ করা
+                        for (let pcName in existingRows) {
+                            existingRows[pcName].remove();
+                        }
                     }
                 } catch(e) { console.log(e); }
             }
@@ -127,13 +171,24 @@ def home():
                 }
             }
 
+            async function clearAllHistory() {
+                if(confirm('আপনি কি সব পিসির হিস্ট্রি একদম ক্লিয়ার করতে চান?')) {
+                    await fetch('/api/clear-all', { method: 'POST' });
+                    fetchStats();
+                }
+            }
+
             setInterval(fetchStats, 3000);
             window.onload = fetchStats;
         </script>
     </head>
     <body>
         <div class="container">
-            <h1>🖥️ Central Admin Monitoring Dashboard</h1>
+            <div class="header-row">
+                <h1>🖥️ Central Admin Monitoring Dashboard</h1>
+                <button class="btn-clear-all" onclick="clearAllHistory()">🗑️ Clear All History</button>
+            </div>
+            
             <div class="cards">
                 <div class="card">
                     <h3>Connected PCs</h3>
@@ -165,7 +220,7 @@ def home():
                     <!-- Dynamic Rows -->
                 </tbody>
             </table>
-            <div class="refresh-note">🔄 Live Auto-Refreshing every 3 seconds...</div>
+            <div class="refresh-note">🔄 Live Background Updating every 3 seconds (Without page refresh)...</div>
         </div>
     </body>
     </html>
