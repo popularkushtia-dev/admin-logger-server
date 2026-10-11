@@ -16,7 +16,7 @@ def receive_log():
     log_msg = data.get("log", "")
     event_type = data.get("event_type", "log")
     
-    # Store global logs
+    # Global logs list
     log_entry = {
         "pc": pc,
         "log": log_msg,
@@ -35,17 +35,20 @@ def receive_log():
             "eventType": event_type
         }
     
-    # Increment total saved count when a mail is done
+    # ১. মেইল সফল হলে Saved কাউন্ট ১ করে জমতে থাকবে (কখনো অটো রিসেট হবে না)
     if event_type == "mail_done":
         active_pcs[pc]["totalSaved"] += 1
 
-    # Update remaining count if provided in payload
+    # ২. Remaining কাউন্ট লজিক: 
+    # সফটওয়্যার স্টপ বা ফিনিশ হলে ০ হয়ে হারিয়ে যাবে না।
+    # কেবল রানিং অবস্থায় যদি নতুন Remaining ভ্যালু (> 0) আসে, তখনই আপডেট হবে।
     if "remaining" in data and data["remaining"] is not None:
         try:
             rem_val = int(data["remaining"])
-            # Update remaining only if new value is provided during processing
-            if event_type in ["start", "mail_done", "log"] and rem_val >= 0:
+            if rem_val > 0:
                 active_pcs[pc]["remainingMails"] = rem_val
+            elif event_type == "start" and rem_val == 0:
+                active_pcs[pc]["remainingMails"] = 0
         except ValueError:
             pass
 
