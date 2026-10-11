@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify, render_template_string
 
 app = Flask(__name__)
 
-# Persistent storage for PCs so stats don't vanish automatically
 active_pcs = {}
 ALL_LOGS = []
 
@@ -16,10 +15,8 @@ def receive_log():
     time_str = data.get("time", "")
     log_msg = data.get("log", "")
     event_type = data.get("event_type", "log")
-    total_saved = int(data.get("total_saved", 0))
     remaining = int(data.get("remaining", 0))
     
-    # Global logs list
     log_entry = {
         "pc": pc,
         "log": log_msg,
@@ -29,17 +26,23 @@ def receive_log():
     if len(ALL_LOGS) > 200:
         ALL_LOGS.pop(0)
         
-    # Retain or accumulate saved count so it never drops unexpectedly
-    existing = active_pcs.get(pc, {"totalSaved": 0, "remainingMails": 0})
-    best_saved = max(existing.get("totalSaved", 0), total_saved)
+    if pc not in active_pcs:
+        active_pcs[pc] = {
+            "lastSeen": time_str,
+            "totalSaved": 0,
+            "remainingMails": 0,
+            "lastLog": log_msg,
+            "eventType": event_type
+        }
     
-    active_pcs[pc] = {
-        "lastSeen": time_str,
-        "totalSaved": best_saved,
-        "remainingMails": remaining,
-        "lastLog": log_msg,
-        "eventType": event_type
-    }
+    # Mail done hole permanent vabe count ek ek kore jog hobe, kakhono reset hobe na
+    if event_type == "mail_done":
+        active_pcs[pc]["totalSaved"] += 1
+        
+    active_pcs[pc]["remainingMails"] = remaining
+    active_pcs[pc]["lastSeen"] = time_str
+    active_pcs[pc]["lastLog"] = log_msg
+    active_pcs[pc]["eventType"] = event_type
     
     return jsonify({"status": "ok"}), 200
 
@@ -257,5 +260,5 @@ def home():
     """
     return render_template_string(html_template)
 
-If __name__ == '__main__':
+if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
