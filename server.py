@@ -47,7 +47,7 @@ def receive_log():
         ALL_LOGS.append(data)
         if len(ALL_LOGS) > 1000:
             ALL_LOGS.pop(0)
-        return jsonify({"status": "ok"}}, 200
+        return jsonify({"status": "ok"}), 200
     return jsonify({"error": "No data"}), 400
 
 @app.route('/', methods=['GET'])
