@@ -35,7 +35,7 @@ def receive_log():
             "eventType": event_type
         }
     
-    # Mail done hole permanent vabe count ek ek kore jog hobe, kakhono reset hobe na
+    # মেইল সফলভাবে সম্পন্ন হলে কাউন্ট স্থায়ীভাবে জমতে থাকবে, পিসি স্টপ হলেও রিসেট হবে না
     if event_type == "mail_done":
         active_pcs[pc]["totalSaved"] += 1
         
@@ -91,7 +91,7 @@ def home():
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>Central Admin Monitoring Dashboard by imran</title>
+        <title>Central Admin Monitoring Dashboard by Imran</title>
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
             .container { max-width: 1100px; margin: 0 auto; }
@@ -212,7 +212,7 @@ def home():
     <body>
         <div class="container">
             <div class="header-row">
-                <h1>🖥️ Central Admin Monitoring Dashboard</h1>
+                <h1>🖥️ Central Admin Monitoring Dashboard by Imran</h1>
                 <button class="btn-clear-all" onclick="clearAllHistory()">🗑️ Clear All History</button>
             </div>
             
