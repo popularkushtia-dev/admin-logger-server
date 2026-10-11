@@ -45,7 +45,8 @@ def get_stats():
             "pcName": pc,
             "saved": info["totalSaved"],
             "remaining": info["remainingMails"],
-            "lastActive": info["lastSeen"]
+            "lastActive": info["lastSeen"],
+            "lastLog": info["lastLog"]
         })
         
     return jsonify({
@@ -55,18 +56,25 @@ def get_stats():
         "pcDetails": pc_list
     })
 
-# চমৎকার ডিজাইনের অ্যাডমিন ড্যাশবোর্ড UI
+# পিসির হিস্ট্রি ডিলিট বা রিসেট করার API
+@app.route('/api/delete/<pc_name>', methods=['POST'])
+def delete_pc(pc_name):
+    if pc_name in active_pcs:
+        del active_pcs[pc_name]
+    return jsonify({"status": "deleted"})
+
+# প্রিমিয়াম ডিজাইন ও লাইভ লগসহ ড্যাশবোর্ড UI
 @app.route('/', methods=['GET'])
 def home():
     html_template = """
     <!DOCTYPE html>
-    html lang="en">
+    <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>Central Admin Dashboard</title>
+        <title>Central Admin Monitoring Dashboard</title>
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
-            .container { max-width: 1000px; margin: 0 auto; }
+            .container { max-width: 1100px; margin: 0 auto; }
             h1 { text-align: center; color: #38bdf8; margin-bottom: 30px; }
             .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
             .card { background: #1e293b; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-left: 5px solid #38bdf8; }
@@ -79,6 +87,9 @@ def home():
             th { background: #334155; color: #38bdf8; text-transform: uppercase; font-size: 12px; }
             tr:hover { background: #273548; }
             .badge { background: #0284c7; color: white; padding: 4px 8px; border-radius: 6px; font-size: 12px; }
+            .log-text { font-family: monospace; font-size: 12px; color: #cbd5e1; background: #090d16; padding: 6px 10px; border-radius: 6px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .btn-delete { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; }
+            .btn-delete:hover { background: #dc2626; }
             .refresh-note { text-align: center; color: #64748b; margin-top: 20px; font-size: 13px; }
         </style>
         <script>
@@ -93,19 +104,29 @@ def home():
                     let tbody = document.getElementById('pc-table-body');
                     tbody.innerHTML = '';
                     if(data.pcDetails.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b;">কোনো পিসি এখনো কানেক্ট হয়নি</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b;">কোনো পিসি কানেক্ট নেই বা ডাটা মুছে ফেলা হয়েছে।</td></tr>';
                     } else {
                         data.pcDetails.forEach(pc => {
                             let tr = document.createElement('tr');
                             tr.innerHTML = `<td><span class="badge">${pc.pcName}</span></td>
                                             <td style="color: #22c55e; font-weight:bold;">${pc.saved}</td>
                                             <td style="color: #f59e0b; font-weight:bold;">${pc.remaining}</td>
-                                            <td style="color: #94a3b8; font-size:13px;">${pc.lastActive}</td>`;
+                                            <td><div class="log-text" title="${pc.lastLog}">${pc.lastLog || 'No activity'}</div></td>
+                                            <td style="color: #94a3b8; font-size:13px;">${pc.lastActive}</td>
+                                            <td><button class="btn-delete" onclick="deletePC('${pc.pcName}')">🗑️ Delete</button></td>`;
                             tbody.appendChild(tr);
                         });
                     }
                 } catch(e) { console.log(e); }
             }
+
+            async function deletePC(pcName) {
+                if(confirm(pcName + ' এর হিস্ট্রি রিমুভ করতে চান?')) {
+                    await fetch('/api/delete/' + pcName, { method: 'POST' });
+                    fetchStats();
+                }
+            }
+
             setInterval(fetchStats, 3000);
             window.onload = fetchStats;
         </script>
@@ -128,18 +149,20 @@ def home():
                 </div>
             </div>
             
-            <h2 style="color: #f1f5f9; font-size: 18px; margin-bottom: 12px;">Worker PCs Status</h2>
+            <h2 style="color: #f1f5f9; font-size: 18px; margin-bottom: 12px;">Worker PCs Status & Live Logs</h2>
             <table>
                 <thead>
                     <tr>
                         <th>PC Name</th>
-                        <th>Completed (Saved)</th>
+                        <th>Completed</th>
                         <th>Remaining</th>
+                        <th>Live Activity Log</th>
                         <th>Last Active Time</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody id="pc-table-body">
-                    <!-- Dynamic Data -->
+                    <!-- Dynamic Rows -->
                 </tbody>
             </table>
             <div class="refresh-note">🔄 Live Auto-Refreshing every 3 seconds...</div>
