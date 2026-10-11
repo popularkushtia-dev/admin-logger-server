@@ -103,7 +103,7 @@ def home():
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>Central Admin Monitoring Dashboard by Imran</title>
+        <title>SignUpGenius checkout 5x Admin Monitoring Dashboard by Imran</title>
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
             .container { max-width: 1100px; margin: 0 auto; }
@@ -224,7 +224,7 @@ def home():
     <body>
         <div class="container">
             <div class="header-row">
-                <h1>🖥️ Central Admin Monitoring Dashboard by Imran</h1>
+                <h1>🖥️ SignUpGenius checkout 5x Admin Monitoring Dashboard by Imran</h1>
                 <button class="btn-clear-all" onclick="clearAllHistory()">🗑️ Clear All History</button>
             </div>
             
