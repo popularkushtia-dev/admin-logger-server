@@ -15,11 +15,17 @@ def receive_log():
     time_str = data.get("time", "")
     log_msg = data.get("log", "")
     event_type = data.get("event_type", "log")
-    total_saved = data.get("total_saved", 0)
-    remaining = data.get("remaining", 0)
+    total_saved = int(data.get("total_saved", 0))
+    remaining = int(data.get("remaining", 0))
     
-    ALL_LOGS.append(data)
-    if len(ALL_LOGS) > 1000:
+    # Software er log er moto message banano
+    log_entry = {
+        "pc": pc,
+        "log": log_msg,
+        "type": event_type
+    }
+    ALL_LOGS.append(log_entry)
+    if len(ALL_LOGS) > 200:
         ALL_LOGS.pop(0)
         
     active_pcs[pc] = {
@@ -53,7 +59,8 @@ def get_stats():
         "totalConnectedPCs": len(active_pcs),
         "grandTotalSaved": grand_total_saved,
         "grandTotalRemaining": grand_total_remaining,
-        "pcDetails": pc_list
+        "pcDetails": pc_list,
+        "logs": ALL_LOGS[-50:]
     })
 
 @app.route('/api/delete/<pc_name>', methods=['POST'])
@@ -80,25 +87,29 @@ def home():
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
             .container { max-width: 1100px; margin: 0 auto; }
-            .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+            .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
             h1 { color: #38bdf8; margin: 0; font-size: 24px; }
             .btn-clear-all { background: #dc2626; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
             .btn-clear-all:hover { background: #b91c1c; }
-            .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
+            .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 25px; }
             .card { background: #1e293b; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-left: 5px solid #38bdf8; }
             .card.green { border-left-color: #22c55e; }
             .card.orange { border-left-color: #f59e0b; }
             .card h3 { margin: 0; font-size: 14px; color: #94a3b8; text-transform: uppercase; }
             .card p { font-size: 28px; font-weight: bold; margin: 10px 0 0 0; color: #fff; }
-            table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+            table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-bottom: 25px; }
             th, td { padding: 15px; text-align: left; border-bottom: 1px solid #334155; }
             th { background: #334155; color: #38bdf8; text-transform: uppercase; font-size: 12px; }
             tr:hover { background: #273548; }
             .badge { background: #0284c7; color: white; padding: 4px 8px; border-radius: 6px; font-size: 12px; }
-            .log-text { font-family: monospace; font-size: 12px; color: #cbd5e1; background: #090d16; padding: 6px 10px; border-radius: 6px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .btn-delete { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; }
             .btn-delete:hover { background: #dc2626; }
-            .refresh-note { text-align: center; color: #64748b; margin-top: 20px; font-size: 13px; }
+            
+            /* Software Style Log Box */
+            .log-section-title { color: #f1f5f9; font-size: 18px; margin-bottom: 10px; }
+            .log-container { background: #111318; border: 1px solid #334155; border-radius: 12px; padding: 15px; height: 220px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 12px; color: #98c379; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); }
+            .log-line { margin-bottom: 4px; word-break: break-all; }
+            .refresh-note { text-align: center; color: #64748b; margin-top: 15px; font-size: 13px; }
         </style>
         <script>
             async function fetchStats() {
@@ -110,8 +121,6 @@ def home():
                     document.getElementById('remaining').innerText = data.grandTotalRemaining;
                     
                     let tbody = document.getElementById('pc-table-body');
-                    
-                    // বর্তমান টেবিলের ডাটা আপডেট করা হবে, পুরো পেজ বা টেবিল రీ-ক্রিয়েট বা রিলোড হবে না
                     let existingRows = {};
                     for (let row of tbody.rows) {
                         if (row.cells.length > 0 && row.cells[0].innerText) {
@@ -120,9 +129,8 @@ def home():
                     }
 
                     if(data.pcDetails.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b;">কোনো পিসি কানেক্ট নেই বা হিস্ট্রি ক্লিয়ার করা হয়েছে।</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b;">No PC connected or history cleared.</td></tr>';
                     } else {
-                        // যদি আগে নো-ডাটা মেসেজ থাকে তা সরিয়ে ফেলব
                         if(tbody.rows.length === 1 && tbody.rows[0].cells.length === 1) {
                             tbody.innerHTML = '';
                         }
@@ -132,53 +140,68 @@ def home():
                             let activeTime = pc.lastActive || '';
 
                             if (existingRows[pc.pcName]) {
-                                // শুধু ভ্যালুগুলো আপডেট করবে, ফলে মাউস বা ফোকাস হারাবে না
                                 let row = existingRows[pc.pcName];
                                 row.cells[1].innerText = pc.saved;
                                 row.cells[2].innerText = pc.remaining;
-                                let logDiv = row.cells[3].querySelector('.log-text');
-                                if(logDiv && logDiv.innerText !== logMsg) {
-                                    logDiv.innerText = logMsg;
-                                    logDiv.title = logMsg;
-                                }
+                                row.cells[3].innerText = logMsg;
                                 row.cells[4].innerText = activeTime;
                                 delete existingRows[pc.pcName];
                             } else {
-                                // নতুন পিসি যুক্ত হলে রো তৈরি করবে
                                 let tr = document.createElement('tr');
                                 tr.innerHTML = `<td><span class="badge">${pc.pcName}</span></td>
                                                 <td style="color: #22c55e; font-weight:bold;">${pc.saved}</td>
                                                 <td style="color: #f59e0b; font-weight:bold;">${pc.remaining}</td>
-                                                <td><div class="log-text" title="${logMsg}">${logMsg}</div></td>
+                                                <td style="color: #cbd5e1; font-family:monospace; font-size:12px;">${logMsg}</td>
                                                 <td style="color: #94a3b8; font-size:13px;">${activeTime}</td>
                                                 <td><button class="btn-delete" onclick="deletePC('${pc.pcName}')">🗑️ Delete</button></td>`;
                                 tbody.appendChild(tr);
                             }
                         });
 
-                        // যে পিসিগুলো ডিসকানেক্ট বা ডিলিট হয়েছে তাদের রো রিমুভ করা
                         for (let pcName in existingRows) {
                             existingRows[pcName].remove();
                         }
                     }
+
+                    // Software Style Log Box Update (Without extra seconds/time)
+                    let logBox = document.getElementById('live-log-box');
+                    let isScrolledToBottom = logBox.scrollHeight - logBox.clientHeight <= logBox.scrollTop + 20;
+                    
+                    let logHtml = '';
+                    if(data.logs && data.logs.length > 0) {
+                        data.logs.forEach(l => {
+                            let color = l.type === 'stop' ? '#ef4444' : (l.type === 'start' ? '#38bdf8' : '#98c379');
+                            // Software er moto shudhu [PC Name] Message dekhabe, kono extra second thakbe na
+                            logHtml += `<div class="log-line" style="color: ${color};">[${l.pc}] ${l.log}</div>`;
+                        });
+                    } else {
+                        logHtml = '<div style="color: #64748b;">Waiting for activity logs...</div>';
+                    }
+                    logBox.innerHTML = logHtml;
+                    
+                    if (isScrolledToBottom) {
+                        logBox.scrollTop = logBox.scrollHeight;
+                    }
+
                 } catch(e) { console.log(e); }
             }
 
             async function deletePC(pcName) {
-                if(confirm(pcName + ' এর হিস্ট্রি রিমুভ করতে চান?')) {
+                if(confirm(pcName + ' er history remove korte chan?')) {
                     await fetch('/api/delete/' + pcName, { method: 'POST' });
                     fetchStats();
                 }
             }
 
             async function clearAllHistory() {
-                if(confirm('আপনি কি সব পিসির হিস্ট্রি একদম ক্লিয়ার করতে চান?')) {
+                if(confirm('Apni ki shob PC-r history clear korte chan?')) {
                     await fetch('/api/clear-all', { method: 'POST' });
                     fetchStats();
                 }
             }
 
-            setInterval(fetchStats, 3000);
+            // Prottek 1 second por por update hobe jate software er moto instant laghe
+            setInterval(fetchStats, 1000);
             window.onload = fetchStats;
         </script>
     </head>
@@ -194,7 +217,7 @@ def home():
                     <h3>Connected PCs</h3>
                     <p id="pcs">0</p>
                 </div>
-                <div class="card green">
+                <div class="card.green card green">
                     <h3>Total Mails Saved</h3>
                     <p id="saved">0</p>
                 </div>
@@ -204,14 +227,14 @@ def home():
                 </div>
             </div>
             
-            <h2 style="color: #f1f5f9; font-size: 18px; margin-bottom: 12px;">Worker PCs Status & Live Logs</h2>
+            <h2 style="color: #f1f5f9; font-size: 18px; margin-bottom: 12px;">Worker PCs Status</h2>
             <table>
                 <thead>
                     <tr>
                         <th>PC Name</th>
                         <th>Completed</th>
                         <th>Remaining</th>
-                        <th>Live Activity Log</th>
+                        <th>Latest Activity</th>
                         <th>Last Active Time</th>
                         <th>Action</th>
                     </tr>
@@ -220,7 +243,13 @@ def home():
                     <!-- Dynamic Rows -->
                 </tbody>
             </table>
-            <div class="refresh-note">🔄 Live Background Updating every 3 seconds (Without page refresh)...</div>
+
+            <div class="log-section-title">📜 Live System Logs (Software Style)</div>
+            <div id="live-log-box" class="log-container">
+                <!-- Live Logs -->
+            </div>
+
+            <div class="refresh-note">🔄 Live Instant Background Sync (Every 1 second)...</div>
         </div>
     </body>
     </html>
