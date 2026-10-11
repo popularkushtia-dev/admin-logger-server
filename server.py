@@ -91,7 +91,7 @@ def home():
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>Central Admin Monitoring Dashboard</title>
+        <title>Central Admin Monitoring Dashboard by imran</title>
         <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
             .container { max-width: 1100px; margin: 0 auto; }
