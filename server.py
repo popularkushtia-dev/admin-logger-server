@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template_string
 
 app = Flask(__name__)
 
+# Persistent storage for PCs so stats don't vanish automatically
 active_pcs = {}
 ALL_LOGS = []
 
@@ -18,7 +19,7 @@ def receive_log():
     total_saved = int(data.get("total_saved", 0))
     remaining = int(data.get("remaining", 0))
     
-    # Software er log er moto message banano
+    # Global logs list
     log_entry = {
         "pc": pc,
         "log": log_msg,
@@ -28,9 +29,13 @@ def receive_log():
     if len(ALL_LOGS) > 200:
         ALL_LOGS.pop(0)
         
+    # Retain or accumulate saved count so it never drops unexpectedly
+    existing = active_pcs.get(pc, {"totalSaved": 0, "remainingMails": 0})
+    best_saved = max(existing.get("totalSaved", 0), total_saved)
+    
     active_pcs[pc] = {
         "lastSeen": time_str,
-        "totalSaved": total_saved,
+        "totalSaved": best_saved,
         "remainingMails": remaining,
         "lastLog": log_msg,
         "eventType": event_type
@@ -105,7 +110,6 @@ def home():
             .btn-delete { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; }
             .btn-delete:hover { background: #dc2626; }
             
-            /* Software Style Log Box */
             .log-section-title { color: #f1f5f9; font-size: 18px; margin-bottom: 10px; }
             .log-container { background: #111318; border: 1px solid #334155; border-radius: 12px; padding: 15px; height: 220px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 12px; color: #98c379; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); }
             .log-line { margin-bottom: 4px; word-break: break-all; }
@@ -163,7 +167,6 @@ def home():
                         }
                     }
 
-                    // Software Style Log Box Update (Without extra seconds/time)
                     let logBox = document.getElementById('live-log-box');
                     let isScrolledToBottom = logBox.scrollHeight - logBox.clientHeight <= logBox.scrollTop + 20;
                     
@@ -171,7 +174,6 @@ def home():
                     if(data.logs && data.logs.length > 0) {
                         data.logs.forEach(l => {
                             let color = l.type === 'stop' ? '#ef4444' : (l.type === 'start' ? '#38bdf8' : '#98c379');
-                            // Software er moto shudhu [PC Name] Message dekhabe, kono extra second thakbe na
                             logHtml += `<div class="log-line" style="color: ${color};">[${l.pc}] ${l.log}</div>`;
                         });
                     } else {
@@ -200,7 +202,6 @@ def home():
                 }
             }
 
-            // Prottek 1 second por por update hobe jate software er moto instant laghe
             setInterval(fetchStats, 1000);
             window.onload = fetchStats;
         </script>
@@ -217,7 +218,7 @@ def home():
                     <h3>Connected PCs</h3>
                     <p id="pcs">0</p>
                 </div>
-                <div class="card.green card green">
+                <div class="card green">
                     <h3>Total Mails Saved</h3>
                     <p id="saved">0</p>
                 </div>
@@ -256,5 +257,5 @@ def home():
     """
     return render_template_string(html_template)
 
-if __name__ == '__main__':
+If __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
